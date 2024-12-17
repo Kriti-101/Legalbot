@@ -2,6 +2,22 @@ from fastapi import FastAPI
 from pydantic import BaseModel
 from model import create_legal_document_tool
 
+from dotenv import load_dotenv
+import os
+
+# Load .env file
+load_dotenv()
+
+# Print variables to ensure they are loaded
+print("LangSmith API Key:", os.getenv("LANGCHAIN_API_KEY"))
+print("LangSmith Tracing:", os.getenv("LANGCHAIN_TRACING_V2"))
+print("LangSmith Endpoint:", os.getenv("LANGCHAIN_ENDPOINT"))
+
+# Access variables
+langchain_api_key = os.getenv("LANGCHAIN_API_KEY")
+print(f"API Key: {langchain_api_key}")
+
+
 # Initialize FastAPI app
 app = FastAPI()
 
