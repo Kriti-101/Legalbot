@@ -5,12 +5,37 @@ from langchain_community.vectorstores import FAISS
 from langchain_community.embeddings import HuggingFaceEmbeddings
 from PyPDF2 import PdfReader
 import logging
+import langchain
+from langchain_core.tracers.langchain import wait_for_all_tracers
+
+
+import os
+from langsmith import utils
+from dotenv import load_dotenv
+
+utils.tracing_is_enabled()
+
+os.environ["LANGCHAIN_TRACING_V2"] = "true"
+os.environ["LANGCHAIN_API_KEY"]="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"
+os.environ["LANGCHAIN_ENDPOINT"]="https://api.smith.langchain.com"
+os.environ["LANGCHAIN_PROJECT"]="legalbot"
+
+load_dotenv(dotenv_path=".env",override=True)
+
+
+
+# Set up LangChain Tracing Configuration
+langsmith_api_key = "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" # Replace with your LangSmith API Key
+project_id = "legalbot" # Replace with your LangSmith project ID
+
+# Optional: If you want to use a custom logger, you can also set up your logging here
+logger = logging.getLogger("LegalDocumentQA")
+logging.basicConfig(level=logging.INFO)
 
 class LegalDocumentQA:
     def __init__(self, 
                  model_name="deepset/roberta-base-squad2", 
-                 embedding_model="all-MiniLM-L6-v2",
-                 langsmith_api_key=None):
+                 embedding_model="all-MiniLM-L6-v2"):
         # Load QA model and tokenizer
         self.tokenizer = AutoTokenizer.from_pretrained(model_name)
         self.model = AutoModelForQuestionAnswering.from_pretrained(model_name)
@@ -21,27 +46,20 @@ class LegalDocumentQA:
         # Vector store for document chunks
         self.vectorstore = None
 
-        # Initialize logger
-        self.logger = logging.getLogger("LegalDocumentQA")
-        logging.basicConfig(level=logging.INFO)
-        if langsmith_api_key:
-            self.logger.info("LangSmith API key provided, but no LangSmithLogger is used.")
-
     def log_event(self, event_name, details=None):
         """
-        Custom method to log events.
+        Custom method to log events. Also integrates with LangChain's tracing system.
         :param event_name: Name of the event.
         :param details: Additional details about the event (optional).
         """
         if details:
-            self.logger.info(f"Event: {event_name}, Details: {details}")
+            logger.info(f"Event: {event_name}, Details: {details}")
         else:
-            self.logger.info(f"Event: {event_name}")
+            logger.info(f"Event: {event_name}")
 
     def load_document(self, file_path):
         """
         Load a PDF document, split it into chunks, and store it in a vector store.
-
         :param file_path: Path to the PDF file.
         :return: Number of chunks created.
         """
@@ -51,7 +69,7 @@ class LegalDocumentQA:
             text = ""
             for page in reader.pages:
                 page_text = page.extract_text()
-                if page_text:  # Ensure the page has extractable text
+                if page_text:
                     text += page_text
                 else:
                     self.log_event("EmptyPageWarning", {"page_number": reader.pages.index(page)})
@@ -69,11 +87,8 @@ class LegalDocumentQA:
             # Create vector store for document retrieval
             self.vectorstore = FAISS.from_texts(texts, self.embeddings)
 
-            # Log document processing
-            self.log_event(
-                "load_document", 
-                {"file_path": file_path, "num_chunks": len(texts)}
-            )
+            # Log document processing event
+            self.log_event("load_document", {"file_path": file_path, "num_chunks": len(texts)})
 
             return len(texts)
 
@@ -81,11 +96,9 @@ class LegalDocumentQA:
             self.log_event("DocumentLoadError", {"file_path": file_path, "error": str(e)})
             raise
 
-    
     def answer_question(self, question, top_k=3):
         """
         Answer a question based on the loaded document.
-
         :param question: The question to answer.
         :param top_k: Number of top relevant document chunks to retrieve.
         :return: Dictionary containing the answer, context, and confidence score.
@@ -124,7 +137,7 @@ class LegalDocumentQA:
             start_index = torch.argmax(start_logits)
             end_index = torch.argmax(end_logits)
 
-            if start_index > end_index:  # Handle invalid token spans
+            if start_index > end_index:
                 return {
                     'answer': None,
                     'context': context,
@@ -137,15 +150,12 @@ class LegalDocumentQA:
             answer = self.tokenizer.decode(answer_tokens, skip_special_tokens=True)
 
             # Log the query and response
-            self.log_event(
-                "answer_question",
-                {
-                    "question": question,
-                    "answer": answer,
-                    "context": context,
-                    "confidence": torch.max(start_logits).item()
-                }
-            )
+            self.log_event("answer_question", {
+                "question": question,
+                "answer": answer,
+                "context": context,
+                "confidence": torch.max(start_logits).item()
+            })
 
             return {
                 'answer': answer,
@@ -162,14 +172,10 @@ class LegalDocumentQA:
                 'error': str(e)
             }
 
-
-
-
+# Now create an instance of LegalDocumentQA and execute it
 print("Starting main execution...")
 
-# Instantiate the class with LangSmith API key
-langsmith_api_key = "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"
-qa_system = LegalDocumentQA(langsmith_api_key=langsmith_api_key)
+qa_system = LegalDocumentQA()
 
 # Path to your PDF file
 pdf_path = "sample_legal_document.pdf"  
@@ -185,3 +191,6 @@ result = qa_system.answer_question(question)
 # Print the result
 print("Answer:", result['answer'])
 print("Context:", result['context'])
+
+# Wait for all tracing events to finish
+wait_for_all_tracers()

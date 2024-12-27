@@ -10,11 +10,6 @@ import docx
 from langchain.tools import Tool
 from langchain.chains import LLMChain
 
-LANGCHAIN_TRACING_V2=True
-LANGCHAIN_ENDPOINT="https://api.smith.langchain.com"
-LANGCHAIN_API_KEY="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"
-LANGCHAIN_PROJECT="pr-standard-mill-28"
-
 class LegalDocumentQA:
     def __init__(self, document_path='sample_legal_document.pdf'):
         """
