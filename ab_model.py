@@ -184,7 +184,7 @@ num_chunks = qa_system.load_document(pdf_path)
 print(f"Document loaded with {num_chunks} chunks.")
 
 # Ask a question
-question = "Who is the stakeholder?"  # Replace with your question
+question = "what is corporate law?"  # Replace with your question
 print("Answering question...")
 result = qa_system.answer_question(question)
 
