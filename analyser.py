@@ -34,16 +34,18 @@ class SimpleLegalAnalyzer:
     def __init__(self):
         # ----------  Groq API setup  ----------
         self.groq_client = None
-        self.groq_model = "mixtral-8x7b-32768"
+        self.groq_model = "llama-3.3-70b-versatile"  # Current recommended model
         self.groq_api_key = os.getenv("GROQ_API_KEY")
         if self.groq_api_key:
             try:
                 self.groq_client = Groq(api_key=self.groq_api_key)
-                logger.info("✓ Groq client initialized with Mixtral-8x7b-32768")
+                logger.info("✓ Groq client initialized with llama-3.3-70b-versatile")
             except Exception as e:
                 logger.warning(f"⚠️  Groq init failed: {e}")
         else:
             logger.warning("⚠️  GROQ_API_KEY not set – answers will not be enhanced")
+
+
 
         logger.info("Initializing Simple Legal Analyzer...")
 
