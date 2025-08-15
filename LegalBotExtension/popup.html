@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>LegalDoc Analyzer</title>
+  <style>
+    body  {font-family:Arial,Helvetica,sans-serif;width:330px;padding:18px;background:#f7f9fc}
+    h2    {margin:0 0 12px;color:#2c3e50}
+    button,input {width:100%;padding:10px;border-radius:6px;border:1px solid #ccc;font-size:14px}
+    button {background:#3498db;color:#fff;border:none;margin-top:6px;cursor:pointer}
+    button:hover {background:#2980b9}
+    #examples  {display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-top:10px}
+    #status    {margin-top:10px;font-size:12px;color:#666}
+    #answerBox {margin-top:12px;padding:10px;background:#fff;border-left:4px solid #3498db;display:none}
+    .risk      {font-weight:bold}
+    .risk.low      {color:#27ae60}
+    .risk.medium   {color:#f39c12}
+    .risk.high     {color:#e74c3c}
+  </style>
+</head>
+<body>
+  <h2>🔍 Legal Analyzer</h2>
+
+  <!-- Analyse -->
+  <button id="analyseBtn">Analyse This Page</button>
+
+  <!-- Ask -->
+  <input id="questionInput" placeholder="Ask a question about this page…">
+  <button id="askBtn">Ask Question</button>
+
+  <!-- Example questions -->
+  <div id="examples">
+    <button data-q="Can they share my personal data?">Data Sharing</button>
+    <button data-q="What happens if I cancel?">Cancellation</button>
+    <button data-q="Am I liable for damages?">Liability</button>
+    <button data-q="Can they change the terms?">Term Changes</button>
+  </div>
+
+  <div id="status"></div>
+  <div id="answerBox"></div>
+
+  <script src="popup.js"></script>
+</body>
+</html>

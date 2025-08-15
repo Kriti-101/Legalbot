@@ -7,6 +7,7 @@ import os
 import logging
 from pathlib import Path
 from typing import Optional, List, Dict, Any
+from datetime import datetime  # Add this if not already present
 
 # Import our simple analyzer
 from analyser import SimpleLegalAnalyzer
@@ -21,6 +22,7 @@ app = FastAPI(
     description="Upload PDFs and get easy-to-understand legal analysis",
     version="1.0.0"
 )
+
 
 # Add CORS
 app.add_middleware(
@@ -44,6 +46,14 @@ class QuestionResponse(BaseModel):
     confidence: float
     method: str
     relevant_chunks: int
+
+class ScreenTextRequest(BaseModel):
+    text: str
+
+class EnhancedQuestionRequest(BaseModel):
+    question: str
+    document_id: Optional[str] = None
+    text: Optional[str] = None  # New field for raw text input
 
 # Routes
 @app.get("/", response_class=HTMLResponse)
@@ -503,6 +513,84 @@ def main_page():
     </body>
     </html>
     """
+
+@app.post('/analyze-document/')  # This matches your browser extension
+async def analyze_document(request: ScreenTextRequest):
+    """Analyze raw text from screen (for browser extension)"""
+    try:
+        text = request.text.strip()
+        if not text:
+            raise HTTPException(status_code=400, detail="Empty text provided")
+        
+        if len(text) < 50:
+            raise HTTPException(status_code=400, detail="Text too short for analysis")
+
+        # Use analyzer's risk analysis method directly on text
+        risk_analysis = analyzer.analyze_legal_risks(text)
+        
+        # Detect document type
+        doc_type = analyzer._detect_document_type(text) if hasattr(analyzer, '_detect_document_type') else "unknown"
+        
+        return {
+            "document_type": doc_type,
+            "risk_score": risk_analysis['risk_score'],
+            "risk_level": risk_analysis['risk_level'],
+            "summary": risk_analysis.get('summary', f"Risk Level: {risk_analysis['risk_level']} with score {risk_analysis['risk_score']}/100"),
+            "character_count": len(text),
+            "analysis_method": "screen_text"
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Screen text analysis error: {e}")
+        raise HTTPException(status_code=500, detail=f"Analysis error: {str(e)}")
+
+@app.post('/ask-screen/', response_model=QuestionResponse)
+async def ask_question_screen(request: EnhancedQuestionRequest):
+    try:
+        if request.text:
+            temp_doc_id = f"temp_{abs(hash(request.text[:100]))}"
+            analyzer.documents[temp_doc_id] = {
+                'text': request.text,
+                'chunks': analyzer.chunk_text(request.text),
+                'file_path': 'screen_text',
+                'risk_analysis': analyzer.analyze_legal_risks(request.text),
+                'created_at': datetime.now().isoformat()
+            }
+
+            embeddings = analyzer.embedding_model.encode(analyzer.documents[temp_doc_id]['chunks'], show_progress_bar=False)
+            analyzer.embeddings[temp_doc_id] = embeddings
+
+            result = analyzer.ask_question(request.question, temp_doc_id)
+
+            # Safe fallbacks for all required keys
+            answer = result.get('answer', 'No answer available')
+            confidence = result.get('confidence', 0.0)
+            method = result.get('method', 'groq_enhanced')
+            relevant_chunks = result.get('relevant_chunks', 0)  # Safe fallback
+
+            analyzer.documents.pop(temp_doc_id)
+            analyzer.embeddings.pop(temp_doc_id)
+        else:
+            result = analyzer.ask_question(request.question, request.document_id)
+            
+            # Safe fallbacks
+            answer = result.get('answer', 'No answer available')
+            confidence = result.get('confidence', 0.0)
+            method = result.get('method', 'groq_enhanced')
+            relevant_chunks = result.get('relevant_chunks', 0)
+
+        return QuestionResponse(
+            answer=answer,
+            confidence=confidence,
+            method=method,
+            relevant_chunks=relevant_chunks
+        )
+    except Exception as e:
+        logger.error(f"Error in ask-screen: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
 
 @app.post("/upload/")
 async def upload_document(file: UploadFile = File(...)):

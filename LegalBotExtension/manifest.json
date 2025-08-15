@@ -1,0 +1,21 @@
+
+{
+  "manifest_version": 3,
+  "name": "LegalDoc Analyzer",
+  "version": "1.0",
+  "description": "Analyze legal documents on web pages in Microsoft Edge using```",
+  "permissions": ["activeTab", "scripting", "storage"],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "action": {
+    "default_popup": "popup.html"
+  },
+  "content_scripts": [
+    {
+      "matches": ["<all_urls>"],
+      "js": ["contentScript.js"],
+      "run_at": "document_idle"
+    }
+  ]
+}
